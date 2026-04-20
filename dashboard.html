@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CoreBank — Data Engineering Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
+    --border: #2a2a3d;
+    --accent: #00ff88;
+    --accent2: #7c3aed;
+    --accent3: #f59e0b;
+    --danger: #ef4444;
+    --text: #e8e8f0;
+    --muted: #6b6b8a;
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(0,255,136,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,136,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+  /* Header */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 0;
+    background: rgba(10,10,15,0.95);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    backdrop-filter: blur(10px);
+  }
+
+  .header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+  }
+
+  .logo span { color: var(--accent); }
+
+  .status-bar {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .status-text { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+
+  /* Stats row */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 32px 0;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 2px;
+  }
+
+  .stat-card:nth-child(1)::after { background: var(--accent); }
+  .stat-card:nth-child(2)::after { background: var(--accent2); }
+  .stat-card:nth-child(3)::after { background: var(--accent3); }
+  .stat-card:nth-child(4)::after { background: var(--danger); }
+
+  .stat-label { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .stat-value { font-family: var(--mono); font-size: 28px; font-weight: 700; }
+  .stat-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* Main grid */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+  }
+
+  .full-width { grid-column: 1 / -1; }
+
+  /* Panels */
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .panel-icon {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+  }
+
+  .panel-title {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .panel-body { padding: 20px; }
+
+  /* Forms */
+  .form-group { margin-bottom: 14px; }
+  
+  label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+
+  input, select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    padding: 10px 12px;
+    font-family: var(--mono);
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input:focus, select:focus { border-color: var(--accent); }
+
+  select option { background: var(--surface2); }
+
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* Buttons */
+  .btn {
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  .btn-green { background: var(--accent); color: #000; }
+  .btn-green:hover { background: #00cc6a; transform: translateY(-1px); }
+
+  .btn-purple { background: var(--accent2); color: #fff; }
+  .btn-purple:hover { background: #6d28d9; transform: translateY(-1px); }
+
+  .btn-amber { background: var(--accent3); color: #000; }
+  .btn-amber:hover { background: #d97706; transform: translateY(-1px); }
+
+  .btn-red { background: var(--danger); color: #fff; }
+  .btn-red:hover { background: #dc2626; transform: translateY(-1px); }
+
+  .btn-outline {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+  }
+  .btn-outline:hover { background: rgba(0,255,136,0.1); }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+  
+  .tab {
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .tab.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Response box */
+  .response-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    font-family: var(--mono);
+    font-size: 12px;
+    min-height: 60px;
+    margin-top: 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    color: var(--muted);
+    transition: all 0.3s;
+  }
+
+  .response-box.success { border-color: var(--accent); color: var(--accent); }
+  .response-box.error { border-color: var(--danger); color: var(--danger); }
+
+  /* Table */
+  .table-wrap { overflow-x: auto; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  th {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  td {
+    padding: 12px;
+    border-bottom: 1px solid rgba(42,42,61,0.5);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .badge-deposit { background: rgba(0,255,136,0.15); color: var(--accent); }
+  .badge-withdraw { background: rgba(239,68,68,0.15); color: var(--danger); }
+  .badge-transfer { background: rgba(124,58,237,0.15); color: #a78bfa; }
+
+  /* Analytics bars */
+  .analytics-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+  .analytics-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px;
+  }
+
+  .analytics-type { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; margin-bottom: 8px; }
+  .analytics-count { font-family: var(--mono); font-size: 32px; font-weight: 700; }
+  .analytics-total { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  .bar-wrap { height: 4px; background: var(--border); border-radius: 2px; margin-top: 12px; }
+  .bar { height: 100%; border-radius: 2px; transition: width 0.8s ease; }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  .loader {
+    display: inline-block;
+    width: 12px; height: 12px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin-right: 8px;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .section-title {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 20px 0;
+    margin-top: 40px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <div class="header-inner">
+      <div class="logo">CORE<span>BANK</span> <span style="color:var(--muted);font-size:13px;">/ Data Engineering Pipeline</span></div>
+      <div class="status-bar">
+        <div class="status-dot"></div>
+        <span class="status-text">FLASK API: localhost:5000</span>
+        <span class="status-text" style="color:var(--accent);">LIVE</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="container" style="padding-top: 32px; padding-bottom: 60px;">
+
+  <!-- Stats Row -->
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card">
+      <div class="stat-label">Total Transactions</div>
+      <div class="stat-value" id="statTotal">—</div>
+      <div class="stat-sub">All time</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Deposited</div>
+      <div class="stat-value" id="statDeposits">—</div>
+      <div class="stat-sub">Cumulative</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Total Withdrawn</div>
+      <div class="stat-value" id="statWithdrawals">—</div>
+      <div class="stat-sub">Cumulative</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Transfers</div>
+      <div class="stat-value" id="statTransfers">—</div>
+      <div class="stat-sub">Count</div>
+    </div>
+  </div>
+
+  <!-- Main Grid -->
+  <div class="main-grid">
+
+    <!-- Customer Panel -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-icon" style="background:rgba(0,255,136,0.1);">👤</div>
+        <div class="panel-title">Customer Management</div>
+      </div>
+      <div class="panel-body">
+        <div class="section-title">Create Customer</div>
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" id="custName" placeholder="Abhishek Dewangan">
+        </div>
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="custEmail" placeholder="abhishek@gmail.com">
+        </div>
+        <div class="form-group">
+          <label>Phone Number</label>
+          <input type="text" id="custPhone" placeholder="9876543210">
+        </div>
+        <button class="btn btn-green" onclick="createCustomer()">Create Customer</button>
+        <div class="response-box" id="custResponse">Awaiting input...</div>
+      </div>
+    </div>
+
+    <!-- Account Panel -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-icon" style="background:rgba(124,58,237,0.1);">🏦</div>
+        <div class="panel-title">Account Management</div>
+      </div>
+      <div class="panel-body">
+        <div class="section-title">Create Account</div>
+        <div class="form-group">
+          <label>Customer ID</label>
+          <input type="number" id="accCustId" placeholder="1">
+        </div>
+        <div class="form-group">
+          <label>Account Type</label>
+          <select id="accType">
+            <option value="savings">Savings</option>
+            <option value="current">Current</option>
+            <option value="fixed">Fixed Deposit</option>
+          </select>
+        </div>
+        <button class="btn btn-purple" onclick="createAccount()">Create Account</button>
+        <div class="response-box" id="accResponse">Awaiting input...</div>
+      </div>
+    </div>
+
+    <!-- Transactions Panel -->
+    <div class="panel full-width">
+      <div class="panel-header">
+        <div class="panel-icon" style="background:rgba(245,158,11,0.1);">💸</div>
+        <div class="panel-title">Transactions</div>
+      </div>
+      <div class="panel-body">
+        <div class="tabs">
+          <button class="tab active" onclick="switchTab('deposit')">Deposit</button>
+          <button class="tab" onclick="switchTab('withdraw')">Withdraw</button>
+          <button class="tab" onclick="switchTab('transfer')">Transfer</button>
+        </div>
+
+        <!-- Deposit -->
+        <div class="tab-content active" id="tab-deposit">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Account ID</label>
+              <input type="number" id="depAccId" placeholder="1">
+            </div>
+            <div class="form-group">
+              <label>Amount (₹)</label>
+              <input type="number" id="depAmount" placeholder="5000">
+            </div>
+          </div>
+          <button class="btn btn-green" onclick="deposit()">+ Deposit Funds</button>
+          <div class="response-box" id="depResponse">Awaiting input...</div>
+        </div>
+
+        <!-- Withdraw -->
+        <div class="tab-content" id="tab-withdraw">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Account ID</label>
+              <input type="number" id="witAccId" placeholder="1">
+            </div>
+            <div class="form-group">
+              <label>Amount (₹)</label>
+              <input type="number" id="witAmount" placeholder="1000">
+            </div>
+          </div>
+          <button class="btn btn-red" onclick="withdraw()">− Withdraw Funds</button>
+          <div class="response-box" id="witResponse">Awaiting input...</div>
+        </div>
+
+        <!-- Transfer -->
+        <div class="tab-content" id="tab-transfer">
+          <div class="form-row">
+            <div class="form-group">
+              <label>From Account</label>
+              <input type="number" id="traFrom" placeholder="1">
+            </div>
+            <div class="form-group">
+              <label>To Account</label>
+              <input type="number" id="traTo" placeholder="2">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Amount (₹)</label>
+            <input type="number" id="traAmount" placeholder="500">
+          </div>
+          <button class="btn btn-purple" onclick="transfer()">→ Transfer Funds</button>
+          <div class="response-box" id="traResponse">Awaiting input...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ledger Panel -->
+    <div class="panel full-width">
+      <div class="panel-header">
+        <div class="panel-icon" style="background:rgba(0,255,136,0.1);">📋</div>
+        <div class="panel-title">Transaction Ledger</div>
+        <div style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+          <input type="number" id="ledgerAccId" placeholder="Account ID" style="width:120px; padding:6px 10px; font-size:11px;">
+          <button class="btn btn-outline" style="width:auto; margin:0; padding:6px 14px;" onclick="loadLedger()">Load</button>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>TXN ID</th>
+                <th>Type</th>
+                <th>From</th>
+                <th>To</th>
+                <th>Amount</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody id="ledgerBody">
+              <tr><td colspan="6" class="empty-state">Enter account ID and click Load</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Analytics Panel -->
+    <div class="panel full-width">
+      <div class="panel-header">
+        <div class="panel-icon" style="background:rgba(245,158,11,0.1);">📊</div>
+        <div class="panel-title">Pipeline Analytics</div>
+        <button class="btn btn-outline" style="width:auto; margin:0; padding:6px 14px; margin-left:auto;" onclick="loadAnalytics()">Refresh</button>
+      </div>
+      <div class="panel-body">
+        <div class="analytics-grid" id="analyticsGrid">
+          <div class="analytics-card">
+            <div class="analytics-type">Deposits</div>
+            <div class="analytics-count" id="aDepCount">—</div>
+            <div class="analytics-total" id="aDepTotal">Total: —</div>
+            <div class="bar-wrap"><div class="bar" id="aDepBar" style="width:0%;background:var(--accent)"></div></div>
+          </div>
+          <div class="analytics-card">
+            <div class="analytics-type">Withdrawals</div>
+            <div class="analytics-count" id="aWitCount">—</div>
+            <div class="analytics-total" id="aWitTotal">Total: —</div>
+            <div class="bar-wrap"><div class="bar" id="aWitBar" style="width:0%;background:var(--danger)"></div></div>
+          </div>
+          <div class="analytics-card">
+            <div class="analytics-type">Transfers</div>
+            <div class="analytics-count" id="aTraCount">—</div>
+            <div class="analytics-total" id="aTraTotal">Total: —</div>
+            <div class="bar-wrap"><div class="bar" id="aTraBar" style="width:0%;background:#a78bfa)"></div></div>
+          </div>
+        </div>
+        <div style="margin-top:16px; font-family:var(--mono); font-size:11px; color:var(--muted); text-align:center;" id="analyticsNote">
+          Analytics computed from live PostgreSQL data via Flask API
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<footer>
+  <div class="container">
+    COREBANK PIPELINE — Flask + PostgreSQL + Kafka + PySpark + Airflow &nbsp;|&nbsp; Built by Abhishek Dewangan
+  </div>
+</footer>
+
+<script>
+  const API = 'http://127.0.0.1:5000';
+
+  function setResponse(id, data, isError = false) {
+    const el = document.getElementById(id);
+    el.textContent = JSON.stringify(data, null, 2);
+    el.className = 'response-box ' + (isError ? 'error' : 'success');
+  }
+
+  function setLoading(id) {
+    const el = document.getElementById(id);
+    el.innerHTML = '<span class="loader"></span>Processing...';
+    el.className = 'response-box';
+  }
+
+  async function apiCall(endpoint, method, body) {
+    const res = await fetch(API + endpoint, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    return await res.json();
+  }
+
+  async function createCustomer() {
+    const name = document.getElementById('custName').value;
+    const email = document.getElementById('custEmail').value;
+    const phone = document.getElementById('custPhone').value;
+    if (!name || !email) return setResponse('custResponse', { error: 'Name and email required' }, true);
+    setLoading('custResponse');
+    try {
+      const data = await apiCall('/create_customer', 'POST', { name, email, phone });
+      setResponse('custResponse', data, data.error);
+    } catch (e) {
+      setResponse('custResponse', { error: 'API unreachable. Is Flask running?' }, true);
+    }
+  }
+
+  async function createAccount() {
+    const customer_id = parseInt(document.getElementById('accCustId').value);
+    const account_type = document.getElementById('accType').value;
+    if (!customer_id) return setResponse('accResponse', { error: 'Customer ID required' }, true);
+    setLoading('accResponse');
+    try {
+      const data = await apiCall('/create_account', 'POST', { customer_id, account_type });
+      setResponse('accResponse', data, data.error);
+    } catch (e) {
+      setResponse('accResponse', { error: 'API unreachable. Is Flask running?' }, true);
+    }
+  }
+
+  async function deposit() {
+    const account_id = parseInt(document.getElementById('depAccId').value);
+    const amount = parseFloat(document.getElementById('depAmount').value);
+    if (!account_id || !amount) return setResponse('depResponse', { error: 'All fields required' }, true);
+    setLoading('depResponse');
+    try {
+      const data = await apiCall('/deposit', 'POST', { account_id, amount });
+      setResponse('depResponse', data, data.error);
+      loadAnalytics();
+    } catch (e) {
+      setResponse('depResponse', { error: 'API unreachable. Is Flask running?' }, true);
+    }
+  }
+
+  async function withdraw() {
+    const account_id = parseInt(document.getElementById('witAccId').value);
+    const amount = parseFloat(document.getElementById('witAmount').value);
+    if (!account_id || !amount) return setResponse('witResponse', { error: 'All fields required' }, true);
+    setLoading('witResponse');
+    try {
+      const data = await apiCall('/withdraw', 'POST', { account_id, amount });
+      setResponse('witResponse', data, data.error);
+      loadAnalytics();
+    } catch (e) {
+      setResponse('witResponse', { error: 'API unreachable. Is Flask running?' }, true);
+    }
+  }
+
+  async function transfer() {
+    const from_account = parseInt(document.getElementById('traFrom').value);
+    const to_account = parseInt(document.getElementById('traTo').value);
+    const amount = parseFloat(document.getElementById('traAmount').value);
+    if (!from_account || !to_account || !amount) return setResponse('traResponse', { error: 'All fields required' }, true);
+    setLoading('traResponse');
+    try {
+      const data = await apiCall('/transfer', 'POST', { from_account, to_account, amount });
+      setResponse('traResponse', data, data.error);
+      loadAnalytics();
+    } catch (e) {
+      setResponse('traResponse', { error: 'API unreachable. Is Flask running?' }, true);
+    }
+  }
+
+  async function loadLedger() {
+    const accId = document.getElementById('ledgerAccId').value;
+    if (!accId) return;
+    const tbody = document.getElementById('ledgerBody');
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><span class="loader"></span>Loading...</td></tr>';
+    try {
+      const data = await apiCall(`/ledger/${accId}`, 'GET');
+      if (!data.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No transactions found</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.map(t => `
+        <tr>
+          <td>#${t.transaction_id}</td>
+          <td><span class="badge badge-${t.type}">${t.type}</span></td>
+          <td>${t.from ?? '—'}</td>
+          <td>${t.to ?? '—'}</td>
+          <td style="color:var(--accent); font-weight:700;">₹${t.amount.toLocaleString()}</td>
+          <td style="color:var(--muted)">${new Date(t.timestamp).toLocaleString()}</td>
+        </tr>
+      `).join('');
+      loadAnalyticsFromLedger(data);
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Error loading ledger</td></tr>';
+    }
+  }
+
+  function loadAnalyticsFromLedger(txns) {
+    const types = { deposit: { count: 0, total: 0 }, withdraw: { count: 0, total: 0 }, transfer: { count: 0, total: 0 } };
+    txns.forEach(t => {
+      if (types[t.type]) { types[t.type].count++; types[t.type].total += t.amount; }
+    });
+    const maxTotal = Math.max(...Object.values(types).map(t => t.total)) || 1;
+    
+    document.getElementById('aDepCount').textContent = types.deposit.count;
+    document.getElementById('aDepTotal').textContent = `Total: ₹${types.deposit.total.toLocaleString()}`;
+    document.getElementById('aDepBar').style.width = (types.deposit.total / maxTotal * 100) + '%';
+    
+    document.getElementById('aWitCount').textContent = types.withdraw.count;
+    document.getElementById('aWitTotal').textContent = `Total: ₹${types.withdraw.total.toLocaleString()}`;
+    document.getElementById('aWitBar').style.width = (types.withdraw.total / maxTotal * 100) + '%';
+    
+    document.getElementById('aTraCount').textContent = types.transfer.count;
+    document.getElementById('aTraTotal').textContent = `Total: ₹${types.transfer.total.toLocaleString()}`;
+    document.getElementById('aTraBar').style.width = (types.transfer.total / maxTotal * 100) + '%';
+
+    document.getElementById('statTotal').textContent = txns.length;
+    document.getElementById('statDeposits').textContent = '₹' + types.deposit.total.toLocaleString();
+    document.getElementById('statWithdrawals').textContent = '₹' + types.withdraw.total.toLocaleString();
+    document.getElementById('statTransfers').textContent = types.transfer.count;
+  }
+
+  async function loadAnalytics() {
+    // Try to load ledger for account 1 to get analytics
+    try {
+      const data = await apiCall('/ledger/1', 'GET');
+      if (data.length) loadAnalyticsFromLedger(data);
+    } catch (e) {}
+  }
+
+  function switchTab(name) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    event.target.classList.add('active');
+  }
+
+  // Auto-load on start
+  window.onload = () => {
+    loadAnalytics();
+  };
+</script>
+</body>
+</html>
